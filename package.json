@@ -7,5 +7,13 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Justin Cooper",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.19.1",
+    "ts-node": "^8.6.2"
+  },
+  "devDependencies": {
+    "node-ts": "^5.0.3",
+    "typescript": "^3.7.4"
+  }
 }
