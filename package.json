@@ -1,0 +1,11 @@
+{
+  "name": "swords-of-destiny-backend",
+  "version": "1.0.0",
+  "description": "Backend or Serverside components for the Swords of Destiny project",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Justin Cooper",
+  "license": "ISC"
+}
