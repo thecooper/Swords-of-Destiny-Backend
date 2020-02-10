@@ -1,16 +1,30 @@
 import axios, { AxiosResponse } from "axios";
 
-type OpeningPriceItem = {
+export type OpeningPriceItem = {
   symbol: string;
   price_open: number;
 };
 
 export interface IOpeningPriceService {
-  getOpeningPrice(symbols: string[]): Promise<OpeningPriceItem[]>;
+  getSymbolHistory(symbol: string): Promise<OpeningPriceItem>;
+  getRealtimeData(symbols: string[]): Promise<OpeningPriceItem[]>;
 }
 
 type WorldTradingDataStockMessage = {
   Message: string;
+};
+
+type WorldTradingDataHistoryResponse = {
+  name: string;
+  history: {
+    [date: string]: {
+      open: number;
+      close: number;
+      high: number;
+      low: number;
+      volume: number;
+    };
+  };
 };
 
 type WorldTradingDataStockResponse = {
@@ -45,46 +59,82 @@ type WorldTradingDataStockResponse = {
 };
 
 export class WorldTradingDataService implements IOpeningPriceService {
-  private apiBaseURL = `https://api.worldtradingdata.com/api/v1`;
+  private apiBaseURL = `https://api.worldtradingdata.com/api/`;
   private apiAuthToken = `v1odpqQ4IATxk7xllY0wvBtSjAdaa0775Sy0IlIZURkBBKm7gndvGdRgfPUm`; // TODO: Secure this by making the runtime environment provide this information
 
   constructor() {}
 
-  public getOpeningPrice(symbols: string[]): Promise<OpeningPriceItem[]> {
+  public getRealtimeData(symbols: string[]): Promise<OpeningPriceItem[]> {
     const symbolQueryParam = `symbol=${symbols.join(",")}`;
     const apiTokenQueryParam = `api_token=${this.apiAuthToken}`;
     const queryParams = [symbolQueryParam, apiTokenQueryParam].join("&");
 
     return axios
-      .get(`${this.apiBaseURL}/stock?${queryParams}`)
+      .get(`${this.apiBaseURL}/v1/stock?${queryParams}`)
       .then(
         (
           response: AxiosResponse<
             WorldTradingDataStockResponse | WorldTradingDataStockMessage
           >
         ) => {
-          console.log(typeof response.data);
-          if ((response.data as WorldTradingDataStockResponse) !== null) {
-            return response.data;
-          } else if ((response.data as WorldTradingDataStockMessage) !== null) {
-            const message: WorldTradingDataStockMessage = response.data as WorldTradingDataStockMessage;
-
+          if ("Message" in response.data) {
             throw new Error(
-              `A non-successful response (status: ${response.status}) was received from the server: ${message.Message}`
+              "There was an error trying to get opening price data: " +
+                response.data.Message
             );
           } else {
-            throw new Error(
-              `A non-successful response (status: ${response.status}) was received from the server: ${response.data}`
-            );
+            return response.data;
           }
         }
       )
       .then(stockResponse => {
-        console.log("Retrieved from the server: ", stockResponse);
-        return stockResponse.data.map(x => ({
-          symbol: x.symbol,
-          price_open: x.price_open || -1
+        return stockResponse.data.map(stockData => ({
+          symbol: stockData.symbol,
+          price_open: stockData.price_open || -1
         }));
       });
+  }
+
+  public getSymbolHistory(symbol: string): Promise<OpeningPriceItem> {
+    const symbolQueryParam = `symbol=${symbol}`;
+    const apiTokenQueryParam = `api_token=${this.apiAuthToken}`;
+
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear().toString();
+    const currentMonth = (currentDate.getMonth() + 1)
+      .toString()
+      .padStart(2, "0");
+    const currentDay = (currentDate.getDate() + 1).toString().padStart(2, "0");
+    const dateFrom = `${currentYear}-${currentMonth}-${currentDay}`;
+    const dateFromQueryParam = `date_from=${dateFrom}`;
+
+    const queryParams = [
+      symbolQueryParam,
+      apiTokenQueryParam,
+      dateFromQueryParam
+    ].join("&");
+
+    return axios
+      .get(`${this.apiBaseURL}/v1/history?${queryParams}`)
+      .then(
+        (
+          response: AxiosResponse<
+            WorldTradingDataHistoryResponse | WorldTradingDataStockMessage
+          >
+        ) => {
+          if ("Message" in response.data) {
+            throw new Error(
+              "There was an error trying to get opening price data: " +
+                response.data.Message
+            );
+          } else {
+            return response.data;
+          }
+        }
+      )
+      .then(stockResponse => ({
+        symbol,
+        price_open: stockResponse.history[dateFrom].open
+      }));
   }
 }
